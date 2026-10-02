@@ -25,6 +25,9 @@ func main() {
 		}
 
 		command = strings.TrimSpace(command)
+		if strings.HasPrefix(command, "echo ") {
+			fmt.Println(command[5:])
+		}
 		if command == "exit" {
 			break
 		}
