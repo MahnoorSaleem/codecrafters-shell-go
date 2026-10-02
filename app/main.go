@@ -10,7 +10,7 @@ import (
 var _ = fmt.Print
 
 func main() {
-	fmt.Print("Enter Value:")
+	fmt.Print("$")
 	command, err := bufio.NewReader(os.Stdin).ReadString('\n')
 
 	if err != nil {
