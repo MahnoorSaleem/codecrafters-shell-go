@@ -25,11 +25,20 @@ func main() {
 		}
 
 		command = strings.TrimSpace(command)
-		if strings.HasPrefix(command, "echo ") {
-			fmt.Println(command[5:])
-		}
+
 		if command == "exit" {
 			break
 		}
+
+		if command == "echo" {
+			fmt.Println()
+			continue
+		} else if strings.HasPrefix(command, "echo ") {
+			fmt.Println(command[5:])
+			continue
+		}
+
+		// Default fallback for unrecognized commands
+		fmt.Println(command + ": command not found")
 	}
 }
