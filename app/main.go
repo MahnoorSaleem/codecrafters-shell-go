@@ -14,7 +14,9 @@ func main() {
 	command, err := bufio.NewReader(os.Stdin).ReadString('\n')
 
 	if err != nil {
-		fmt.Println(command[:len(command)-1] + ": command not found")
+		fmt.Println("Error reading input:", err)
+		return
 	}
+	fmt.Println(command[:len(command)-1] + ": command not found")
 
 }
