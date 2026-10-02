@@ -31,7 +31,5 @@ func main() {
 		if command == "exit" {
 			break
 		}
-
-		fmt.Println(command + ": command not found")
 	}
 }
