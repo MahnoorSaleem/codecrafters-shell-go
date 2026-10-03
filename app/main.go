@@ -50,14 +50,14 @@ func main() {
 			fmt.Println(command[5:])
 		} else {
 
-			path, err := exec.LookPath(tokens[0])
+			_, err := exec.LookPath(tokens[0])
 
 			if err != nil {
 				fmt.Println(command + ": command not found")
 				continue
 			}
 
-			cmd := exec.Command(path, tokens[1:]...)
+			cmd := exec.Command(tokens[0], tokens[1:]...)
 
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
