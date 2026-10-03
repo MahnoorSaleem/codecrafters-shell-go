@@ -27,9 +27,9 @@ func main() {
 			continue
 		}
 
-		command = strings.TrimSpace(command)
-		tokens := strings.Split(command, " ")
-		baseCmd := tokens[0]
+		command = strings.TrimSpace(command)  // echo hello world
+		tokens := strings.Split(command, " ") // []string{"echo", "hello", "world"}
+		baseCmd := tokens[0]                  // echo (2) type
 
 		if baseCmd == "type" {
 			if len(tokens) < 2 {
@@ -45,11 +45,28 @@ func main() {
 				fmt.Println(target + ": not found")
 			}
 		} else if command == "exit" {
-			os.Exit(0)
+			os.Exit(0) // terminates the program immediately.
 		} else if strings.HasPrefix(command, "echo ") {
 			fmt.Println(command[5:])
 		} else {
-			fmt.Println(command + ": command not found")
+
+			path, err := exec.LookPath(tokens[0])
+
+			if err != nil {
+				fmt.Println(command + ": command not found")
+				continue
+			}
+
+			cmd := exec.Command(path, tokens[1:]...)
+
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+
+			err = cmd.Run()
+
+			if err != nil {
+				fmt.Println("Error executing command:", err)
+			}
 		}
 
 	}
