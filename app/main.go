@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -49,17 +48,12 @@ func main() {
 		} else if baseCmd == "cd" {
 			if len(parts) < 2 {
 				fmt.Println("Error: missing path argument")
-				return
+				continue
 			}
 
 			path := parts[1]
-			if filepath.IsAbs(path) {
-				fmt.Println(path)
-
-				// The path is strictly absolute (starts with '/' on Unix or 'C:\' on Windows)
-			} else {
-				fmt.Println("cd" + path + ": No such file or directory")
-
+			if err := os.Chdir(path); err != nil {
+				fmt.Println("cd: " + path + ": No such file or directory")
 			}
 
 		} else if command == "pwd" {
