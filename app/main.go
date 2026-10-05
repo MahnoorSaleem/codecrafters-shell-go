@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -30,6 +31,7 @@ func main() {
 		command = strings.TrimSpace(command)  // echo hello world
 		tokens := strings.Split(command, " ") // []string{"echo", "hello", "world"}
 		baseCmd := tokens[0]                  // echo (2) type
+		parts := strings.Fields(command)
 
 		if baseCmd == "type" {
 			if len(tokens) < 2 {
@@ -44,6 +46,22 @@ func main() {
 			} else if baseCmd == "type" {
 				fmt.Println(target + ": not found")
 			}
+		} else if baseCmd == "cd" {
+			if len(parts) < 2 {
+				fmt.Println("Error: missing path argument")
+				return
+			}
+
+			path := parts[1]
+			if filepath.IsAbs(path) {
+				fmt.Println(path)
+
+				// The path is strictly absolute (starts with '/' on Unix or 'C:\' on Windows)
+			} else {
+				fmt.Println("cd" + path + ": No such file or directory")
+
+			}
+
 		} else if command == "pwd" {
 			cwd, err := os.Getwd()
 			if err != nil {
