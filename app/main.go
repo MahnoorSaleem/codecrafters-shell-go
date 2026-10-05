@@ -15,7 +15,7 @@ var _ = fmt.Print
 func main() {
 
 	reader := bufio.NewReader(os.Stdin)
-	builtins := []string{"echo", "exit", "type"}
+	builtins := []string{"echo", "exit", "type", "pwd"}
 
 	for {
 
@@ -29,17 +29,7 @@ func main() {
 
 		command = strings.TrimSpace(command)  // echo hello world
 		tokens := strings.Split(command, " ") // []string{"echo", "hello", "world"}
-		baseCmd := tokens[0]
-
-		if command == "pwd" {
-			cwd, err := os.Getwd()
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "pwd error:", err)
-			}
-			fmt.Println(cwd)
-			os.Exit(0)
-
-		} // echo (2) type
+		baseCmd := tokens[0]                  // echo (2) type
 
 		if baseCmd == "type" {
 			if len(tokens) < 2 {
@@ -54,6 +44,13 @@ func main() {
 			} else if baseCmd == "type" {
 				fmt.Println(target + ": not found")
 			}
+		} else if command == "pwd" {
+			cwd, err := os.Getwd()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "pwd error:", err)
+			}
+			fmt.Println(cwd)
+
 		} else if command == "exit" {
 			os.Exit(0) // terminates the program immediately.
 		} else if strings.HasPrefix(command, "echo ") {
