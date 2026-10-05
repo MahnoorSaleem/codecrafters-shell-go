@@ -52,6 +52,11 @@ func main() {
 			}
 
 			path := parts[1]
+			if path == "~" {
+				path = os.Getenv("HOME")
+			} else if strings.HasPrefix(path, "~/") {
+				path = os.Getenv("HOME") + path[1:]
+			}
 			if err := os.Chdir(path); err != nil {
 				fmt.Println("cd: " + path + ": No such file or directory")
 			}
