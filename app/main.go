@@ -44,6 +44,13 @@ func main() {
 			} else if baseCmd == "type" {
 				fmt.Println(target + ": not found")
 			}
+		} else if command == "pwd" {
+			cwd, err := os.Getwd()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "pwd error:", err)
+			}
+			fmt.Println(cwd)
+
 		} else if command == "exit" {
 			os.Exit(0) // terminates the program immediately.
 		} else if strings.HasPrefix(command, "echo ") {
