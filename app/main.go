@@ -2,96 +2,164 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 )
 
-// Ensures gofmt doesn't remove the "fmt" import in stage 1 (feel free to remove this!)
-var _ = fmt.Print
+// builtins is the list of commands our shell handles itself.
+var builtins = []string{"echo", "exit", "type", "pwd", "cd"}
 
 func main() {
-
 	reader := bufio.NewReader(os.Stdin)
-	builtins := []string{"echo", "exit", "type", "pwd"}
 
 	for {
-
 		fmt.Print("$ ")
 
-		command, err := reader.ReadString('\n')
+		line, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Error reading input:", err)
+			if errors.Is(err, io.EOF) {
+				os.Exit(0) // Ctrl+D
+			}
+			fmt.Fprintln(os.Stderr, "Error reading input:", err)
 			continue
 		}
 
-		command = strings.TrimSpace(command)  // echo hello world
-		tokens := strings.Split(command, " ") // []string{"echo", "hello", "world"}
-		baseCmd := tokens[0]                  // echo (2) type
-		parts := strings.Fields(command)
+		runCommand(line)
+	}
+}
 
-		if baseCmd == "type" {
-			if len(tokens) < 2 {
-				fmt.Println("type: missing operand")
-				continue
+func runCommand(line string) {
+	parts := parseArgs(line) // "echo 'hello   world'" -> ["echo", "hello   world"]
+	if len(parts) == 0 {
+		return // empty line
+	}
+
+	name, args := parts[0], parts[1:]
+
+	switch name {
+	case "echo":
+		handleEcho(args)
+	case "exit":
+		handleExit(args)
+	case "type":
+		handleType(args)
+	case "pwd":
+		handlePwd()
+	case "cd":
+		handleCd(args)
+	default:
+		runExternal(name, args)
+	}
+}
+
+func parseArgs(line string) []string {
+	var args []string
+	var current strings.Builder
+	inQuotes := false
+	inWord := false
+	for _, ch := range line {
+		switch {
+		case ch == '\'':
+			inQuotes = !inQuotes
+			inWord = true
+		case !inQuotes && (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'):
+			if inWord {
+				args = append(args, current.String())
+				current.Reset()
+				inWord = false
 			}
-			target := tokens[1]
-			if slices.Contains(builtins, target) {
-				fmt.Println(target + " is a shell builtin")
-			} else if path, err := exec.LookPath(target); err == nil {
-				fmt.Printf("%s is %s\n", target, path)
-			} else if baseCmd == "type" {
-				fmt.Println(target + ": not found")
-			}
-		} else if baseCmd == "cd" {
-			if len(parts) < 2 {
-				fmt.Println("Error: missing path argument")
-				continue
-			}
-
-			path := parts[1]
-			if path == "~" {
-				path = os.Getenv("HOME")
-			} else if strings.HasPrefix(path, "~/") {
-				path = os.Getenv("HOME") + path[1:]
-			}
-			if err := os.Chdir(path); err != nil {
-				fmt.Println("cd: " + path + ": No such file or directory")
-			}
-
-		} else if command == "pwd" {
-			cwd, err := os.Getwd()
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "pwd error:", err)
-			}
-			fmt.Println(cwd)
-
-		} else if command == "exit" {
-			os.Exit(0) // terminates the program immediately.
-		} else if strings.HasPrefix(command, "echo ") {
-			fmt.Println(command[5:])
-		} else {
-
-			_, err := exec.LookPath(tokens[0])
-
-			if err != nil {
-				fmt.Println(command + ": command not found")
-				continue
-			}
-
-			cmd := exec.Command(tokens[0], tokens[1:]...)
-
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-
-			err = cmd.Run()
-
-			if err != nil {
-				fmt.Println("Error executing command:", err)
-			}
+		default:
+			current.WriteRune(ch)
+			inWord = true
 		}
+	}
+	if inWord {
+		args = append(args, current.String())
+	}
+	return args
+}
 
+func handleEcho(args []string) {
+	fmt.Println(strings.Join(args, " "))
+}
+
+func handleExit(args []string) {
+	code := 0
+	if len(args) > 0 {
+		if n, err := strconv.Atoi(args[0]); err == nil {
+			code = n
+		}
+	}
+	os.Exit(code)
+}
+
+func handleType(args []string) {
+	if len(args) == 0 {
+		fmt.Println("type: missing operand")
+		return
+	}
+
+	target := args[0]
+	if slices.Contains(builtins, target) {
+		fmt.Println(target + " is a shell builtin")
+	} else if path, err := exec.LookPath(target); err == nil {
+		fmt.Printf("%s is %s\n", target, path)
+	} else {
+		fmt.Println(target + ": not found")
+	}
+}
+
+func handlePwd() {
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "pwd:", err)
+		return
+	}
+	fmt.Println(cwd)
+}
+
+func handleCd(args []string) {
+	path := "~"
+	if len(args) > 0 {
+		path = args[0]
+	}
+
+	path = expandHome(path)
+	if err := os.Chdir(path); err != nil {
+		fmt.Println("cd: " + path + ": No such file or directory")
+	}
+}
+
+func expandHome(path string) string {
+	home := os.Getenv("HOME")
+	if path == "~" {
+		return home
+	}
+	if strings.HasPrefix(path, "~/") {
+		return home + path[1:]
+	}
+	return path
+}
+
+func runExternal(name string, args []string) {
+	if _, err := exec.LookPath(name); err != nil {
+		fmt.Println(name + ": command not found")
+		return
+	}
+
+	cmd := exec.Command(name, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	var exitErr *exec.ExitError
+	if err := cmd.Run(); err != nil && !errors.As(err, &exitErr) {
+		fmt.Fprintln(os.Stderr, "Error executing command:", err)
 	}
 }
