@@ -58,18 +58,25 @@ func runCommand(line string) {
 	}
 }
 
-// echo "hello    world"
-// hello    world
-
-func parseArgs(line string) []string { // echo 'shell hello'
+func parseArgs(line string) []string {
 	var args []string
 	var current strings.Builder
 	inSingle := false
 	inDouble := false
+	escaped := false
 
 	inWord := false
 	for _, ch := range line {
 		switch {
+		case escaped:
+			// previous char was \ so write this one as-is, whatever it is
+			current.WriteRune(ch)
+			inWord = true
+			escaped = false
+		case ch == '\\' && !inSingle && !inDouble:
+			// backslash outside quotes: don't write it, just mark the next char
+			escaped = true
+			inWord = true
 		case ch == '"' && !inSingle:
 			inDouble = !inDouble
 			inWord = true
