@@ -58,17 +58,25 @@ func runCommand(line string) {
 	}
 }
 
-func parseArgs(line string) []string {
+// echo "hello    world"
+// hello    world
+
+func parseArgs(line string) []string { // echo 'shell hello'
 	var args []string
 	var current strings.Builder
-	inQuotes := false
+	inSingle := false
+	inDouble := false
+
 	inWord := false
 	for _, ch := range line {
 		switch {
-		case ch == '\'':
-			inQuotes = !inQuotes
+		case ch == '"' && !inSingle:
+			inDouble = !inDouble
 			inWord = true
-		case !inQuotes && (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'):
+		case ch == '\'' && !inDouble:
+			inSingle = !inSingle
+			inWord = true
+		case (!inSingle && !inDouble) && (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'):
 			if inWord {
 				args = append(args, current.String())
 				current.Reset()
