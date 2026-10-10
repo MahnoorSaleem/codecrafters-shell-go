@@ -69,12 +69,14 @@ func parseArgs(line string) []string {
 	for _, ch := range line {
 		switch {
 		case escaped:
-			// previous char was \ so write this one as-is, whatever it is
+			if inDouble && ch != '"' && ch != '\\' {
+				current.WriteRune('\\')
+			}
 			current.WriteRune(ch)
 			inWord = true
 			escaped = false
-		case ch == '\\' && !inSingle && !inDouble:
-			// backslash outside quotes: don't write it, just mark the next char
+		case ch == '\\' && !inSingle:
+
 			escaped = true
 			inWord = true
 		case ch == '"' && !inSingle:
