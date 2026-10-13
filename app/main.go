@@ -40,21 +40,50 @@ func runCommand(line string) {
 		return // empty line
 	}
 
+	// out is where normal output goes: the screen, unless there's a > redirect.
+	var out io.Writer = os.Stdout
+
+	// Redirect stdout: "echo hi > file.txt" or "echo hi 1> file.txt"
+	i := slices.Index(parts, ">")
+	if i == -1 {
+		i = slices.Index(parts, "1>")
+	}
+	if i != -1 {
+		if i+1 >= len(parts) {
+			fmt.Fprintln(os.Stderr, "syntax error: missing file name after >")
+			return
+		}
+		fileName := parts[i+1]
+		parts = parts[:i] // keep only the words before >
+
+		f, err := os.Create(fileName) // creates the file, or empties it if it exists
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		defer f.Close()
+		out = f
+
+		if len(parts) == 0 {
+			return // just "> file.txt": the file is created, nothing to run
+		}
+	}
+
 	name, args := parts[0], parts[1:]
 
 	switch name {
 	case "echo":
-		handleEcho(args)
+		handleEcho(args, out)
 	case "exit":
 		handleExit(args)
 	case "type":
-		handleType(args)
+		handleType(args, out)
 	case "pwd":
-		handlePwd()
+		handlePwd(out)
 	case "cd":
 		handleCd(args)
 	default:
-		runExternal(name, args)
+		runExternal(name, args, out)
 	}
 }
 
@@ -102,8 +131,8 @@ func parseArgs(line string) []string {
 	return args
 }
 
-func handleEcho(args []string) {
-	fmt.Println(strings.Join(args, " "))
+func handleEcho(args []string, out io.Writer) {
+	fmt.Fprintln(out, strings.Join(args, " "))
 }
 
 func handleExit(args []string) {
@@ -116,7 +145,7 @@ func handleExit(args []string) {
 	os.Exit(code)
 }
 
-func handleType(args []string) {
+func handleType(args []string, out io.Writer) {
 	if len(args) == 0 {
 		fmt.Println("type: missing operand")
 		return
@@ -124,21 +153,21 @@ func handleType(args []string) {
 
 	target := args[0]
 	if slices.Contains(builtins, target) {
-		fmt.Println(target + " is a shell builtin")
+		fmt.Fprintln(out, target+" is a shell builtin")
 	} else if path, err := exec.LookPath(target); err == nil {
-		fmt.Printf("%s is %s\n", target, path)
+		fmt.Fprintf(out, "%s is %s\n", target, path)
 	} else {
 		fmt.Println(target + ": not found")
 	}
 }
 
-func handlePwd() {
+func handlePwd(out io.Writer) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "pwd:", err)
 		return
 	}
-	fmt.Println(cwd)
+	fmt.Fprintln(out, cwd)
 }
 
 func handleCd(args []string) {
@@ -164,7 +193,7 @@ func expandHome(path string) string {
 	return path
 }
 
-func runExternal(name string, args []string) {
+func runExternal(name string, args []string, out io.Writer) {
 	if _, err := exec.LookPath(name); err != nil {
 		fmt.Println(name + ": command not found")
 		return
@@ -172,8 +201,8 @@ func runExternal(name string, args []string) {
 
 	cmd := exec.Command(name, args...)
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = out       // the screen, or the file after >
+	cmd.Stderr = os.Stderr // errors always go to the screen
 
 	var exitErr *exec.ExitError
 	if err := cmd.Run(); err != nil && !errors.As(err, &exitErr) {
